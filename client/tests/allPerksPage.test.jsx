@@ -21,20 +21,30 @@ describe('AllPerks page (Directory)', () => {
       { initialEntries: ['/explore'] }
     );
 
+    // Wait for loading to finish first
+    await waitFor(() => {
+      expect(screen.queryByText('Loading perks...')).not.toBeInTheDocument();
+    }, { timeout: 10000 });
+
     // Wait for the baseline card to appear which guarantees the asynchronous
     // fetch finished.
     await waitFor(() => {
       expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // Interact with the name filter input using the real value that
     // corresponds to the seeded record.
     const nameFilter = screen.getByPlaceholderText('Enter perk name...');
     fireEvent.change(nameFilter, { target: { value: seededPerk.title } });
 
+    // Wait for debounced search to complete (500ms + API call time)
+    await waitFor(() => {
+      expect(screen.queryByText('Searching...')).not.toBeInTheDocument();
+    }, { timeout: 10000 });
+
     await waitFor(() => {
       expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // The summary text should continue to reflect the number of matching perks.
     expect(screen.getByText(/showing/i)).toHaveTextContent('Showing');
@@ -51,7 +61,44 @@ describe('AllPerks page (Directory)', () => {
   */
 
   test('lists public perks and responds to merchant filtering', async () => {
-    // This will always fail until the TODO above is implemented.
-    expect(true).toBe(false);
+    // Use the seeded record
+    const seededPerk = global.__TEST_CONTEXT__.seededPerk;
+
+    // Perform a real HTTP fetch - render the exploration page
+    renderWithRouter(
+      <Routes>
+        <Route path="/explore" element={<AllPerks />} />
+      </Routes>,
+      { initialEntries: ['/explore'] }
+    );
+
+    // Wait for loading to finish first
+    await waitFor(() => {
+      expect(screen.queryByText('Loading perks...')).not.toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    // Wait for the fetch to finish - wait for the baseline card to appear
+    await waitFor(() => {
+      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    // Choose the record's merchant from the dropdown
+    // Find the select by role since label association isn't set up
+    const merchantFilter = screen.getByRole('combobox');
+    fireEvent.change(merchantFilter, { target: { value: seededPerk.merchant } });
+
+    // Wait for debounced search to complete (500ms + API call time)
+    await waitFor(() => {
+      expect(screen.queryByText('Searching...')).not.toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    // Wait for the filtered results to appear
+    await waitFor(() => {
+      // Verify the record is displayed
+      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    // Verify the summary text reflects the number of matching perks
+    expect(screen.getByText(/showing/i)).toHaveTextContent('Showing');
   });
 });
